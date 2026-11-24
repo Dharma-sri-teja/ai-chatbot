@@ -15,6 +15,8 @@ st.set_page_config(
 
 
 database.init_db()
+st.session_state.setdefault("chat_error", None)
+st.session_state.setdefault("chat_notice", None)
 
 
 @st.cache_resource
@@ -102,20 +104,22 @@ with st.sidebar:
         st.session_state.active_conversation_id = database.create_conversation()
         st.rerun()
 
-    conversation_labels = {
-        conversation["title"]: conversation["id"]
+    conversation_by_id = {
+        conversation["id"]: conversation
         for conversation in conversations
     }
-    available_labels = list(conversation_labels)
+    conversation_ids = list(conversation_by_id)
 
-    if available_labels:
-        selected_label = st.selectbox(
+    if conversation_ids:
+        selected_id = st.selectbox(
             "Conversations",
-            available_labels,
-            index=available_labels.index(active_conversation["title"]),
-            key="conversation_select",
+            conversation_ids,
+            index=conversation_ids.index(active_id),
+            format_func=lambda conversation_id: (
+                f"{conversation_by_id[conversation_id]['title']} (#{conversation_id})"
+            ),
+            key="conversation_select_id",
         )
-        selected_id = conversation_labels[selected_label]
         if selected_id != active_id:
             st.session_state.active_conversation_id = selected_id
             st.rerun()
@@ -161,6 +165,13 @@ with st.sidebar:
     st.caption("Built with Python, Streamlit, LangChain, Ollama and SQLite.")
 
 
+if st.session_state.chat_error:
+    st.error(st.session_state.chat_error, icon=":material/error:")
+    st.session_state.chat_error = None
+if st.session_state.chat_notice:
+    st.warning(st.session_state.chat_notice)
+    st.session_state.chat_notice = None
+
 st.title("My AI Chatbot")
 st.caption("Your personal AI assistant powered by Llama 3.2")
 st.divider()
@@ -200,8 +211,9 @@ if user_input:
     with st.chat_message("user"):
         st.markdown(user_input)
 
+    recent_messages = stored_messages[-10:]
     chat_history = []
-    for message in stored_messages:
+    for message in recent_messages:
         if message["role"] == "user":
             chat_history.append(HumanMessage(content=message["content"]))
         else:
@@ -226,12 +238,14 @@ if user_input:
                 )
             answer = get_ai_response_content(response)
             if not answer:
-                st.warning("The AI returned an empty response. Please try asking again.")
+                st.session_state.chat_notice = (
+                    "The AI returned an empty response. Please try asking again."
+                )
             else:
                 st.markdown(answer)
                 database.add_message(active_id, "assistant", answer)
         except Exception as error:
-            st.error(friendly_error(error), icon=":material/error:")
+            st.session_state.chat_error = friendly_error(error)
             print(f"Chatbot error: {error}")
 
     st.rerun()
