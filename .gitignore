@@ -1,5 +1,25 @@
-venv/
+# Python cache
 __pycache__/
 *.py[cod]
-.env
+
+# Virtual environments
 .venv/
+venv/
+venv314/
+
+# Environment variables
+.env
+
+# SQLite database and backups
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# Streamlit
+.streamlit/secrets.toml
+
+# Editor and operating system
+.vscode/
+.DS_Store
+Thumbs.db
